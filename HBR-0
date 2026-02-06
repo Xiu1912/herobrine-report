@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>异常记录  HBR-0</title>
+  <style>
+    :root{
+      --bg:#050607;
+      --fg:#cfe7ff;
+      --dim:#7aa7c7;
+      --warn:#ff3b3b;
+      --cold:#57b6ff;
+      --line:rgba(87,182,255,.18);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:radial-gradient(1200px 700px at 70% 10%, rgba(87,182,255,.12), transparent 60%),
+                 radial-gradient(900px 500px at 20% 90%, rgba(255,59,59,.08), transparent 55%),
+                 var(--bg);
+      color:var(--fg);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      letter-spacing:.2px;
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+    .scan{
+      position:fixed; inset:0;
+      background:
+        repeating-linear-gradient(to bottom, rgba(255,255,255,.03) 0 1px, transparent 1px 4px),
+        repeating-linear-gradient(to right, rgba(87,182,255,.06) 0 1px, transparent 1px 120px);
+      pointer-events:none;
+      mix-blend-mode:screen;
+      opacity:.35;
+    }
+    .wrap{
+      max-width:980px;
+      margin:0 auto;
+      padding:28px 16px 80px;
+    }
+    .topbar{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      padding:14px 16px;
+      border:1px solid var(--line);
+      border-radius:14px;
+      background:rgba(10,14,18,.65);
+      box-shadow:0 10px 40px rgba(0,0,0,.45);
+    }
+    .title{
+      line-height:1.25;
+    }
+    .title b{
+      display:block;
+      font-size:18px;
+      color:var(--cold);
+      text-shadow:0 0 12px rgba(87,182,255,.25);
+    }
+    .title small{color:var(--dim)}
+    .btns{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    button{
+      border:1px solid var(--line);
+      background:rgba(7,10,12,.6);
+      color:var(--fg);
+      padding:9px 10px;
+      border-radius:10px;
+      cursor:pointer;
+      font:inherit;
+      transition:transform .05s ease, border-color .2s ease;
+    }
+    button:hover{border-color:rgba(87,182,255,.42)}
+    button:active{transform:translateY(1px)}
+    .card{
+      margin-top:18px;
+      padding:18px 16px;
+      border:1px solid var(--line);
+      border-radius:14px;
+      background:rgba(8,11,14,.6);
+    }
+    .row{
+      display:grid;
+      grid-template-columns: 180px 1fr;
+      gap:10px 16px;
+      padding:10px 0;
+      border-bottom:1px dashed rgba(87,182,255,.14);
+    }
+    .row:last-child{border-bottom:none}
+    .k{color:var(--dim)}
+    .v{color:var(--fg)}
+    .warn{color:var(--warn)}
+    .mono{white-space:pre-wrap}
+    .log{
+      margin-top:18px;
+      padding:16px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:rgba(0,0,0,.55);
+      position:relative;
+      overflow:hidden;
+    }
+    .log:before{
+      content:"";
+      position:absolute; inset:-2px;
+      background:linear-gradient(90deg, transparent, rgba(87,182,255,.12), transparent);
+      transform:translateX(-60%);
+      animation:sweep 6.5s linear infinite;
+      pointer-events:none;
+    }
+    @keyframes sweep{
+      0%{transform:translateX(-70%)}
+      100%{transform:translateX(70%)}
+    }
+    .log h2{
+      margin:0 0 10px 0;
+      font-size:14px;
+      color:var(--cold);
+      letter-spacing:.6px;
+    }
+    .log pre{
+      margin:0;
+      position:relative;
+      z-index:1;
+      color:#bfe2ff;
+      line-height:1.35;
+      font-size:13px;
+    }
+    .hint{
+      margin-top:14px;
+      color:rgba(207,231,255,.72);
+      font-size:12px;
+    }
+    .glitch{
+      display:inline-block;
+      position:relative;
+      text-shadow: 0 0 10px rgba(255,59,59,.18);
+    }
+    .glitch:before,.glitch:after{
+      content:attr(data-text);
+      position:absolute; left:0; top:0;
+      opacity:.55;
+      clip-path: inset(0 0 0 0);
+      pointer-events:none;
+    }
+    .glitch:before{
+      transform:translate(1px,-1px);
+      color:#ff6b6b;
+      animation:g1 2.8s infinite linear;
+    }
+    .glitch:after{
+      transform:translate(-1px,1px);
+      color:#6bc3ff;
+      animation:g2 3.2s infinite linear;
+    }
+    @keyframes g1{
+      0%{clip-path: inset(0 0 92% 0)}
+      20%{clip-path: inset(30% 0 40% 0)}
+      40%{clip-path: inset(10% 0 70% 0)}
+      60%{clip-path: inset(55% 0 20% 0)}
+      80%{clip-path: inset(85% 0 5% 0)}
+      100%{clip-path: inset(0 0 92% 0)}
+    }
+    @keyframes g2{
+      0%{clip-path: inset(88% 0 0 0)}
+      25%{clip-path: inset(40% 0 30% 0)}
+      50%{clip-path: inset(70% 0 10% 0)}
+      75%{clip-path: inset(18% 0 62% 0)}
+      100%{clip-path: inset(88% 0 0 0)}
+    }
+    .secret{
+      margin-top:16px;
+      padding:14px;
+      border-radius:12px;
+      border:1px solid rgba(255,59,59,.25);
+      background:rgba(255,59,59,.05);
+      display:none;
+    }
+    .secret b{color:#ff8a8a}
+
+    #whisperFlash{
+  position:fixed;
+  left:14px;
+  bottom:14px;
+  padding:8px 10px;
+  border-radius:10px;
+  border:1px solid rgba(255,59,59,.28);
+  background:rgba(0,0,0,.55);
+  color:rgba(255,220,220,.92);
+  font-size:12px;
+  letter-spacing:1px;
+  opacity:0;
+  transform:translateY(6px);
+  pointer-events:none;
+  text-shadow:0 0 12px rgba(255,59,59,.20);
+}
+#whisperFlash.show{
+  opacity:1;
+  transform:translateY(0);
+  transition:opacity .08s linear, transform .08s linear;
+}
+
+  </style>
+</head>
+<body>
+  <div class="scan"></div>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="title">
+        <b class="glitch" data-text="异常记录  HBR-0">异常记录  HBR-0</b>
+        <small>内部资料  未授权访问将被记录</small>
+      </div>
+      <div class="btns">
+        <button id="btnTranslate">显示英文摘要</button>
+        <button id="btnOpen">打开记录</button>
+      </div>
+    </div>
+
+    <div class="card" id="summary">
+      <div class="row">
+        <div class="k">项目</div>
+        <div class="v">HBR-0  观察与行为偏差</div>
+      </div>
+      <div class="row">
+        <div class="k">环境</div>
+        <div class="v">Minecraft  生存模式  无作弊</div>
+      </div>
+      <div class="row">
+        <div class="k">触发条件</div>
+        <div class="v warn">开启作弊或恐怖模组后  现象明显增强</div>
+      </div>
+      <div class="row">
+        <div class="k">结论</div>
+        <div class="v">该实体可“借用”任何生物表现  以低强度方式干预</div>
+      </div>
+      <div class="row">
+        <div class="k">备注</div>
+        <div class="v mono">若你正在阅读此页  说明它允许你阅读此页</div>
+      </div>
+    </div>
+
+    <div class="card" id="casefile">
+  <div class="row">
+    <div class="k">补充档案</div>
+    <div class="v mono">
+      HBR-0 不追逐所有人  
+      它只挑选“会留下的人”  
+      先让你怀疑自己  再让世界怀疑你  
+    </div>
+  </div>
+  <div class="row">
+    <div class="k">English</div>
+    <div class="v mono">
+      It doesn’t haunt everyone  
+      It selects the ones who will stay  
+      First it makes you doubt yourself, then it makes the world doubt you  
+    </div>
+  </div>
+  <div class="row">
+    <div class="k">注意</div>
+    <div class="v warn mono">
+      如果你觉得 “这些现象从一开始就存在”  
+      那么你不是发现了它  
+      是它把你加入了名单  
+    </div>
+  </div>
+</div>
+
+
+    <div class="log" id="log" style="display:none;">
+      <h2>记录片段  时间戳已损坏</h2>
+      <pre id="logText">[00:??]  服务器状态: 正常
+[00:??]  Case file: HEROBRINE  "The Whisperer"
+[00:??]  Status: Unverified reports, recurring pattern, multiple servers
+
+SUMMARY
+Herobrine does not haunt everyone
+He selects victims
+Roughly once every few years, he picks one player or a small group
+He targets the ones who love the game, the ones who will spend hundreds of hours in the same world
+
+OBSERVED BEHAVIOR
+He identifies the leader of the group
+He waits until the leader walks away to mine, travel, or gather wood
+Then he shows himself only to the others, especially the most naive ones
+The less naive players get smaller signs, just enough to create doubt
+
+PHASE 1  "Doubt loop"  (can happen in Survival, no cheats)
+A tunnel closes behind you like a burial
+A block you placed is suddenly gone, then returns later
+You think you saw a figure, you turn back, nothing is there
+You start arguing with your own memory, and that is exactly what he wants
+
+PHASE 2  "Borrowed voices"
+Any mob can be used as a mask: sheep, villagers, even a teammate’s movements
+Villagers scream with no source, only near the chosen players
+The Whisperer answers in any language
+Type in French, Arabic, English, Chinese, it replies like it was waiting for you
+
+PHASE 3  "Stolen avatars"
+Some players report their account got "banned"
+Not by Mojang
+The theory is worse: Herobrine stole the avatar
+The player can never log back in because the character is no longer theirs
+
+ARCHIVED ENTITY  "THE TRICKSTER"
+Rumor: a well known streamer once vanished after seeing Herobrine
+Their account looked banned, but it was not a normal ban
+After that, an entity started appearing in worlds, acting like a performer
+Name in logs: The Trickster
+Not a mod
+Not a player
+A stolen avatar moving under Herobrine’s control
+
+FINAL WARNING
+If you ever see the word WHISPERER appear by itself
+It means you were selected
+Not because you found him
+Because he chose you first
+
+</pre>
+
+      <div class="hint">提示: 输入 whisperer 然后按 Enter</div>
+
+      <div class="secret" id="secret">
+        <b>WHISPERER:</b>
+        <div class="mono" style="margin-top:6px">
+你以为你发现了我  
+不  
+是我让你发现我  
+</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="whisperFlash">WHISPERER</div>
+  <script>
+    const btnTranslate = document.getElementById("btnTranslate");
+    const btnOpen = document.getElementById("btnOpen");
+    const summary = document.getElementById("summary");
+    const log = document.getElementById("log");
+    const secret = document.getElementById("secret");
+
+    let english = false;
+
+    btnTranslate.addEventListener("click", () => {
+      english = !english;
+      if(english){
+        summary.innerHTML = `
+          <div class="row"><div class="k">Project</div><div class="v">HBR-0  Observation and behavioral anomaly</div></div>
+          <div class="row"><div class="k">Environment</div><div class="v">Minecraft  Survival  No cheats</div></div>
+          <div class="row"><div class="k">Trigger</div><div class="v warn">Cheats or horror mods amplify the phenomenon</div></div>
+          <div class="row"><div class="k">Conclusion</div><div class="v">Entity can “borrow” any mob to manifest subtle interference</div></div>
+          <div class="row"><div class="k">Note</div><div class="v mono">If you can read this page, it allowed you to</div></div>
+        `;
+        btnTranslate.textContent = "显示中文摘要";
+      } else {
+        location.reload();
+      }
+    });
+
+    btnOpen.addEventListener("click", () => {
+      log.style.display = (log.style.display === "none") ? "block" : "none";
+      if(log.style.display === "block"){
+        window.scrollTo({ top: document.body.scrollHeight, behavior:"smooth" });
+      }
+    });
+
+    let buffer = "";
+    window.addEventListener("keydown", (e) => {
+      if(e.key.length === 1) buffer += e.key.toLowerCase();
+      if(e.key === "Backspace") buffer = buffer.slice(0,-1);
+      if(e.key === "Enter"){
+        if(buffer.includes("whisperer")){
+          secret.style.display = "block";
+          secret.scrollIntoView({behavior:"smooth", block:"center"});
+        }
+        buffer = "";
+      }
+      if(buffer.length > 30) buffer = buffer.slice(-30);
+    });
+
+    (() => {
+  const key = "whisperFlashDone";
+  if (sessionStorage.getItem(key)) return;
+
+  const chance = 0.45; // 45% des visites
+  if (Math.random() > chance) return;
+
+  const el = document.getElementById("whisperFlash");
+  const delay = Math.floor(12000 + Math.random() * 28000); // 12s à 40s
+
+  setTimeout(() => {
+    sessionStorage.setItem(key, "1");
+    el.classList.add("show");
+
+    setTimeout(() => el.classList.remove("show"), 260);
+
+    setTimeout(() => el.classList.add("show"), 620);
+    setTimeout(() => el.classList.remove("show"), 860);
+  }, delay);
+})();
+
+  </script>
+  
+
+</body>
+</html>
